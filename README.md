@@ -3,7 +3,7 @@ Simple program to get all users ids in a discord guild
 ## How to use
 
 ```
-git clone https://github.com/Lenny4/binance-btc
+git clone git@github.com:Lenny4/scrap-promo-jet.git
 docker compose up
 ```
 

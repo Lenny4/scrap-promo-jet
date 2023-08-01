@@ -123,7 +123,6 @@ async function scrapBundle(page: Page, bundle: any) {
             attempt++;
         }
     }
-    await new Promise(resolve => setTimeout(resolve, 5000000));
     for (let productBundle of productBundles) {
         let found = false;
         for (const partNumber of productBundle.partNumbers) {
