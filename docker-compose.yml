@@ -1,0 +1,21 @@
+version: "3.4"
+
+services:
+  scrapper:
+    env_file:
+      - .env
+    build:
+      context: .
+      target: app_node
+    restart: unless-stopped
+    volumes:
+      - ./:/srv/app:rw
+      - chromium_browser_scapper:/root/.cache/puppeteer/chrome
+    ports:
+      - target: 80
+        published: 6080
+      - target: ${NODE_API_PORT:-4000}
+        published: ${NODE_API_PORT:-4000}
+
+volumes:
+  chromium_browser_scapper:
