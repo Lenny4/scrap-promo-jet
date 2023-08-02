@@ -108,20 +108,17 @@ async function scrapBundle(page: Page, bundle: any) {
     bundle.images = [];
     let attempt = 0;
     if (imagesOk) {
-        while (bundle.images.length !== 6 && attempt < 10) {
-            bundle.images = await page.evaluate(() => {
-                var images: any[] = [];
-                $('#diagram img').each((i, element) => {
-                    images.push({
-                        src: $(element).attr('src'),
-                        style: $(element).attr('style'),
-                    });
+        await new Promise(resolve => setTimeout(resolve, 5000));
+        bundle.images = await page.evaluate(() => {
+            var images: any[] = [];
+            $('#diagram img').each((i, element) => {
+                images.push({
+                    src: $(element).attr('src'),
+                    style: $(element).attr('style'),
                 });
-                return images;
             });
-            await new Promise(resolve => setTimeout(resolve, 500));
-            attempt++;
-        }
+            return images;
+        });
     }
     for (let productBundle of productBundles) {
         let found = false;
@@ -190,23 +187,25 @@ async function scrapYear(page: Page, year: any) {
     years.push(year);
 }
 
+const srcPath = __dirname;
+
 function initData() {
-    if (!fs.existsSync('/srv/app/src/data/years.json')) {
-        fs.writeFileSync('/srv/app/src/data/years.json', JSON.stringify([]));
+    if (!fs.existsSync(srcPath + '/data/years.json')) {
+        fs.writeFileSync(srcPath + '/data/years.json', JSON.stringify([]));
     }
-    if (!fs.existsSync('/srv/app/src/data/models.json')) {
-        fs.writeFileSync('/srv/app/src/data/models.json', JSON.stringify([]));
+    if (!fs.existsSync(srcPath + '/data/models.json')) {
+        fs.writeFileSync(srcPath + '/data/models.json', JSON.stringify([]));
     }
-    if (!fs.existsSync('/srv/app/src/data/bundles.json')) {
-        fs.writeFileSync('/srv/app/src/data/bundles.json', JSON.stringify([]));
+    if (!fs.existsSync(srcPath + '/data/bundles.json')) {
+        fs.writeFileSync(srcPath + '/data/bundles.json', JSON.stringify([]));
     }
-    if (!fs.existsSync('/srv/app/src/data/products.json')) {
-        fs.writeFileSync('/srv/app/src/data/products.json', JSON.stringify([]));
+    if (!fs.existsSync(srcPath + '/data/products.json')) {
+        fs.writeFileSync(srcPath + '/data/products.json', JSON.stringify([]));
     }
-    years = JSON.parse(fs.readFileSync('/srv/app/src/data/years.json', 'utf8'));
-    models = JSON.parse(fs.readFileSync('/srv/app/src/data/models.json', 'utf8'));
-    bundles = JSON.parse(fs.readFileSync('/srv/app/src/data/bundles.json', 'utf8'));
-    products = JSON.parse(fs.readFileSync('/srv/app/src/data/products.json', 'utf8'));
+    years = JSON.parse(fs.readFileSync(srcPath + '/data/years.json', 'utf8'));
+    models = JSON.parse(fs.readFileSync(srcPath + '/data/models.json', 'utf8'));
+    bundles = JSON.parse(fs.readFileSync(srcPath + '/data/bundles.json', 'utf8'));
+    products = JSON.parse(fs.readFileSync(srcPath + '/data/products.json', 'utf8'));
 }
 
 (async () => {
@@ -219,10 +218,10 @@ function initData() {
     for (const yearToDo of yearsToDo) {
         console.log('doing year ' + yearToDo.text + ' ...');
         await scrapYear(page, yearToDo);
-        fs.writeFileSync('/srv/app/src/data/years.json', JSON.stringify(years));
-        fs.writeFileSync('/srv/app/src/data/models.json', JSON.stringify(models));
-        fs.writeFileSync('/srv/app/src/data/bundles.json', JSON.stringify(bundles));
-        fs.writeFileSync('/srv/app/src/data/products.json', JSON.stringify(products));
+        fs.writeFileSync(srcPath + '/data/years.json', JSON.stringify(years));
+        fs.writeFileSync(srcPath + '/data/models.json', JSON.stringify(models));
+        fs.writeFileSync(srcPath + '/data/bundles.json', JSON.stringify(bundles));
+        fs.writeFileSync(srcPath + '/data/products.json', JSON.stringify(products));
     }
     console.log('finished !');
 })();

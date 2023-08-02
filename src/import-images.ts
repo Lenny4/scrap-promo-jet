@@ -28,7 +28,7 @@ const start = async () => {
         const folderName = bundle.url.replaceAll('/', '-');
         const path = '/home/alexandre/Documents/project/scrap-promo-jet/src/data/img/' + folderName;
         const extension = bundle.images[0].src.split('.').pop();
-        if (fs.existsSync(path + '.' + extension) && !path.includes('500d8f71f870020908258799-magneto')) {
+        if (fs.existsSync(path + '.' + extension)) {
             continue;
         }
         if (!fs.existsSync(path)) {
