@@ -106,16 +106,11 @@ async function scrapBundle(page: Page, bundle: any) {
         }
     });
     bundle.images = [];
-    let attempt = 0;
     if (imagesOk) {
-        await new Promise(resolve => setTimeout(resolve, 5000));
         bundle.images = await page.evaluate(() => {
             var images: any[] = [];
             $('#diagram img').each((i, element) => {
-                images.push({
-                    src: $(element).attr('src'),
-                    style: $(element).attr('style'),
-                });
+                images.push($(element).attr('src'));
             });
             return images;
         });

@@ -7,10 +7,12 @@ const cliProgress = require('cli-progress');
 
 const bundles = JSON.parse(fs.readFileSync('/home/alexandre/Documents/project/scrap-promo-jet/src/data/bundles.json', 'utf8'));
 
-const download = (uri: string, filename: string) => {
+const download = (uri: string, filename: string): Promise<number> => {
     return new Promise((resolve, reject) => {
         request.head(uri, (err: any, res: any, body: any) => {
-            request(uri).pipe(fs.createWriteStream(filename)).on('close', resolve);
+            request(uri)
+                .pipe(fs.createWriteStream(filename))
+                .on('close', () => resolve(res.statusCode));
         });
     })
 };
@@ -26,8 +28,11 @@ const start = async () => {
             bar1.update(i);
         }
         const folderName = bundle.url.replaceAll('/', '-');
+        // if (folderName !== '-oemparts-a-sea-62a373f5292e49162cb03f6f-crankcase-rotary-valve-2') {
+        //     continue;
+        // }
         const path = '/home/alexandre/Documents/project/scrap-promo-jet/src/data/img/' + folderName;
-        const extension = bundle.images[0].src.split('.').pop();
+        const extension = bundle.images[0].split('.').pop();
         if (fs.existsSync(path + '.' + extension)) {
             continue;
         }
@@ -35,21 +40,53 @@ const start = async () => {
             fs.mkdirSync(path);
         }
         let names: any = {};
-        for (const img of bundle.images) {
-            let filename = img.src.replaceAll('/', '-');
-            const currentKey = img.style.match(/matrix\(.*\)/)[0].split(',')[4];
-            await download(img.src, path + '/' + filename);
-            if (!names.hasOwnProperty(currentKey)) {
-                names[currentKey] = [];
+        let nbLines = 0;
+        let nbColumns = 0;
+        let statusCode = 200;
+        const downloadUrl = bundle.images[0].match(/.*assembly_files/)[0] + '/11/';
+        while (statusCode === 200) {
+            const filename = nbColumns + '_' + nbLines + '.' + extension;
+            statusCode = await download(downloadUrl + filename, path + '/' + filename);
+            if (statusCode !== 200 && nbColumns === 0 && nbLines === 0) {
+                throw 'init image not found';
             }
-            names[currentKey].push(path + '/' + filename);
+            if (statusCode !== 200 && statusCode !== 404) {
+                throw 'why statusCode !== 200 && statusCode !== 404';
+            }
+            nbLines++;
+        }
+        const maxLine = nbLines - 2;
+        nbLines = 0;
+        statusCode = 200;
+        while (statusCode === 200) {
+            nbColumns++;
+            const filename = nbColumns + '_' + nbLines + '.' + extension;
+            statusCode = await download(downloadUrl + filename, path + '/' + filename);
+            if (statusCode !== 200 && statusCode !== 404) {
+                throw 'why statusCode !== 200 && statusCode !== 404';
+            }
+        }
+        const maxColumn = nbColumns - 1;
+        for (let c = 0; c <= maxColumn; c++) {
+            names[c] = [];
+            for (let l = 0; l <= maxLine; l++) {
+                const filename = c + '_' + l + '.' + extension;
+                names[c].push(path + '/' + filename);
+                if (l === 0 || c === 0) {
+                    continue;
+                }
+                statusCode = await download(downloadUrl + filename, path + '/' + filename);
+                if (statusCode !== 200) {
+                    throw 'why 2 != 200';
+                }
+            }
         }
         const allKeys = [];
         for (const key in names) {
-            await mergeImages(names[key].reverse().map((imgPath: string) => imgPath), path + '/' + key + '.' + extension);
+            await mergeImages(names[key].map((imgPath: string) => imgPath), path + '/' + key + '.' + extension);
             allKeys.push(key);
         }
-        await mergeImages(allKeys.reverse().map((key) => path + '/' + key + '.' + extension), path + '.' + extension, {direction: 'horizontal'});
+        await mergeImages(allKeys.map((key) => path + '/' + key + '.' + extension), path + '.' + extension, {direction: 'horizontal'});
         fs.rmSync(path, {recursive: true, force: true});
     }
     bar1.stop();
