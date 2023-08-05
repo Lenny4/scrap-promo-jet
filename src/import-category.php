@@ -117,7 +117,7 @@ function getProductPrice(array $product): string
     return "0";
 }
 
-function createBundle(array $bundle, ?int $mediaId, array $createdProducts): int
+function createBundle(array $bundle, array $categories, ?int $mediaId, array $createdProducts): int
 {
 
     $curl = curl_init();
@@ -125,9 +125,9 @@ function createBundle(array $bundle, ?int $mediaId, array $createdProducts): int
     $alphabets = range('a', 'z');
     foreach ($bundle["products"] as $i => $product) {
         $value[$alphabets[$i]] = [
-            "id" => $createdProducts[getProductIdentifier($product)],
+            "id" => (int)$createdProducts[getProductIdentifier($product)],
             "sku" => "",
-            "qty" => $product['quantity'] ?? 0,
+            "qty" => isset($product['quantity']) ? (int)$product['quantity'] : 0,
         ];
     }
     curl_setopt_array($curl, array(
@@ -143,6 +143,7 @@ function createBundle(array $bundle, ?int $mediaId, array $createdProducts): int
             "name" => $bundle["text"],
             "images" => $mediaId ? [["id" => $mediaId]] : [],
             "type" => "woosb",
+            "categories" => array_map(static fn(int $catId) => ['id' => $catId], $categories),
             "attributes" => [
                 [
                     "name" => "Lien source",
@@ -158,6 +159,66 @@ function createBundle(array $bundle, ?int $mediaId, array $createdProducts): int
                 [
                     "key" => "woosb_ids",
                     "value" => $value
+                ],
+                [
+                    "key" => "woosb_disable_auto_price",
+                    "value" => "off"
+                ],
+                [
+                    "key" => "woosb_discount",
+                    "value" => ""
+                ],
+                [
+                    "key" => "woosb_discount_amount",
+                    "value" => ""
+                ],
+                [
+                    "key" => "woosb_shipping_fee",
+                    "value" => "whole"
+                ],
+                [
+                    "key" => "woosb_optional_products",
+                    "value" => "on"
+                ],
+                [
+                    "key" => "woosb_manage_stock",
+                    "value" => "off"
+                ],
+                [
+                    "key" => "woosb_limit_each_min",
+                    "value" => ""
+                ],
+                [
+                    "key" => "woosb_limit_each_max",
+                    "value" => ""
+                ],
+                [
+                    "key" => "woosb_limit_each_min_default",
+                    "value" => "off"
+                ],
+                [
+                    "key" => "woosb_limit_whole_min",
+                    "value" => ""
+                ],
+                [
+                    "key" => "woosb_limit_whole_max",
+                    "value" => ""
+                ],
+                [
+                    "key" => "woosb_total_limits",
+                    "value" => "off"
+                ],
+                [
+                    "key" => "woosb_total_limits_min",
+                    "value" => ""
+                ],
+                [
+                    "key" => "woosb_total_limits_max",
+                    "value" => ""
+                ],
+                [
+                    "key" => "woosb_layout",
+                    "value" => "unset"
                 ]
             ]
         ], JSON_THROW_ON_ERROR),
@@ -175,7 +236,7 @@ function createBundle(array $bundle, ?int $mediaId, array $createdProducts): int
 
 $createdProducts = [];
 
-function createProductIfNotExists(array $product, array &$createdProducts): int
+function createProductIfNotExists(array $product, array $categories, array &$createdProducts): int
 {
     $identifier = getProductIdentifier($product);
     if (isset($createdProducts[$identifier])) {
@@ -185,6 +246,7 @@ function createProductIfNotExists(array $product, array &$createdProducts): int
     $postfields = [
         "name" => !empty($product["name2"]) ? $product["name2"] : $product["name"],
         "regular_price" => (string)getProductPrice($product),
+        "categories" => array_map(static fn(int $catId) => ['id' => $catId], $categories),
         "attributes" => [
             [
                 "name" => "Numéro constructeur",
@@ -232,10 +294,10 @@ foreach ($years as $year) {
             $bundle = $bundles[$bundleIndex];
             $productIds = [];
             foreach ($bundle["products"] as $product) {
-                $productIds[] = createProductIfNotExists($products[getProductIdentifier($product)], $createdProducts);
+                $productIds[] = createProductIfNotExists($products[getProductIdentifier($product)], [$parentId, $yearId, $modelId], $createdProducts);
             }
             $mediaId = postMedia($bundle);
-            $bundleId = createBundle($bundle, $mediaId, $createdProducts);
+            $bundleId = createBundle($bundle, [$parentId, $yearId, $modelId], $mediaId, $createdProducts);
         }
     }
 }
