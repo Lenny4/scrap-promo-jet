@@ -32,6 +32,9 @@ const start = async () => {
         //     continue;
         // }
         const path = '/home/alexandre/Documents/project/scrap-promo-jet/src/data/img/' + folderName;
+        if (bundle.images.length === 0) {
+            continue;
+        }
         const extension = bundle.images[0].split('.').pop();
         if (fs.existsSync(path + '.' + extension)) {
             continue;

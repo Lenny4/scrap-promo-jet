@@ -1,5 +1,7 @@
 <?php
 
+// https://woocommerce.github.io/woocommerce-rest-api-docs/
+
 $products = json_decode(file_get_contents(__DIR__ . '/data/products.json'), true);
 $years = json_decode(file_get_contents(__DIR__ . '/data/years.json'), true);
 $models = [];
@@ -69,6 +71,41 @@ function createCategory(
     return json_decode($response, true, 512, JSON_THROW_ON_ERROR)['id'];
 }
 
+function postMedia(array $bundle): ?int
+{
+    if (count($bundle["images"]) === 0) {
+        return null;
+    }
+    $curl = curl_init();
+    $extension = pathinfo($bundle["images"][0], PATHINFO_EXTENSION);
+    $filePath = __DIR__ . '/data/img/' . str_replace('/', '-', $bundle['url']) . '.' . $extension;
+    if (!file_exists($filePath)) {
+        throw new UnexpectedValueException();
+    }
+    curl_setopt_array($curl, array(
+        CURLOPT_URL => 'http://caddy/wp-json/wp/v2/media',
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_ENCODING => '',
+        CURLOPT_MAXREDIRS => 10,
+        CURLOPT_TIMEOUT => 0,
+        CURLOPT_FOLLOWLOCATION => true,
+        CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
+        CURLOPT_CUSTOMREQUEST => 'POST',
+        CURLOPT_POST => 1,
+        CURLOPT_POSTFIELDS => file_get_contents($filePath),
+        CURLOPT_HTTPHEADER => array(
+            'Content-Disposition: form-data; filename="' . $bundle["text"] . '.' . $extension . '"',
+            'Content-Type: image/' . $extension,
+            'Authorization: Basic YWRtaW46MXd1VCB6d3pJIGRPVlUgc043cCBvTTdFIFhPdkg=',
+        ),
+    ));
+
+    $response = curl_exec($curl);
+
+    curl_close($curl);
+    return json_decode($response, true, 512, JSON_THROW_ON_ERROR)['id'];
+}
+
 function getProductPrice(array $product): string
 {
     if (!empty($product["price2"])) {
@@ -78,6 +115,51 @@ function getProductPrice(array $product): string
         return number_format((float)trim(str_replace(['$', '€'], '', $product["price"])) * 1.1, 2, '.', '');
     }
     return "0";
+}
+
+function createBundle(array $bundle, ?int $mediaId, array $createdProducts): int
+{
+
+    $curl = curl_init();
+    $value = [];
+    $alphabets = range('a', 'z');
+    foreach ($bundle["products"] as $i => $product) {
+        $value[$alphabets[$i]] = [
+            "id" => $createdProducts[getProductIdentifier($product)],
+            "sku" => "",
+            "qty" => $product['quantity'] ?? 0,
+        ];
+    }
+    curl_setopt_array($curl, array(
+        CURLOPT_URL => 'http://caddy/wp-json/wc/v3/products',
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_ENCODING => '',
+        CURLOPT_MAXREDIRS => 10,
+        CURLOPT_TIMEOUT => 0,
+        CURLOPT_FOLLOWLOCATION => true,
+        CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
+        CURLOPT_CUSTOMREQUEST => 'POST',
+        CURLOPT_POSTFIELDS => json_encode([
+            "name" => $bundle["text"],
+            "images" => $mediaId ? [["id" => $mediaId]] : [],
+            "type" => "woosb",
+            "meta_data" => [
+                [
+                    "key" => "woosb_ids",
+                    "value" => $value
+                ]
+            ]
+        ], JSON_THROW_ON_ERROR),
+        CURLOPT_HTTPHEADER => array(
+            'Content-Type: application/json',
+            'Authorization: Basic YWRtaW46MXd1VCB6d3pJIGRPVlUgc043cCBvTTdFIFhPdkg=',
+        ),
+    ));
+
+    $response = curl_exec($curl);
+
+    curl_close($curl);
+    return json_decode($response, true, 512, JSON_THROW_ON_ERROR)['id'];
 }
 
 $createdProducts = [];
@@ -126,22 +208,23 @@ function createProductIfNotExists(array $product, array &$createdProducts): int
     return $id;
 }
 
+// /usr/bin/php /home/alexandre/Documents/project/scrap-promo-jet/src/import-category.php
 $parentId = 30;
 foreach ($years as $year) {
     $yearId = createCategory($year["text"], $parentId, 'subcategories');
-    foreach ($models[$year["text"]] as $model) {
+    $countModel = count($models[$year["text"]]);
+    foreach ($models[$year["text"]] as $indexModel => $model) {
         $modelId = createCategory($model["text"], $yearId, 'subcategories');
-        foreach ($model["bundles"] as $bundleIndex) {
+        $countBundle = count($model["bundles"]);
+        foreach ($model["bundles"] as $indexBundle => $bundleIndex) {
+            echo 'doing year ' . $year["text"] . ' | model ' . $indexModel . '/' . $countModel . ' | bundle ' . $indexBundle . '/' . $countBundle . "\n";
             $bundle = $bundles[$bundleIndex];
             $productIds = [];
             foreach ($bundle["products"] as $product) {
                 $productIds[] = createProductIfNotExists($products[getProductIdentifier($product)], $createdProducts);
             }
-            // todo upload l'image du bundle
-            // todo créer le produit avec type "type": "woosb" et meta_data voir scratch_11.json
-            $t = 0;
+            $mediaId = postMedia($bundle);
+            $bundleId = createBundle($bundle, $mediaId, $createdProducts);
         }
-        $t = 0;
     }
-    $t = 0;
 }
