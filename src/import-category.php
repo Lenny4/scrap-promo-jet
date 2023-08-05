@@ -143,6 +143,17 @@ function createBundle(array $bundle, ?int $mediaId, array $createdProducts): int
             "name" => $bundle["text"],
             "images" => $mediaId ? [["id" => $mediaId]] : [],
             "type" => "woosb",
+            "attributes" => [
+                [
+                    "name" => "Lien source",
+                    "position" => 0,
+                    "visible" => false,
+                    "variation" => false,
+                    "options" => [
+                        'https://www.ronniesmailorder.com' . $bundle["url"]
+                    ]
+                ]
+            ],
             "meta_data" => [
                 [
                     "key" => "woosb_ids",
