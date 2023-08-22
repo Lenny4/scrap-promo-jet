@@ -2,7 +2,6 @@
 
 // https://woocommerce.github.io/woocommerce-rest-api-docs/
 
-$products = json_decode(file_get_contents(__DIR__ . '/data/products.json'), true);
 $years = json_decode(file_get_contents(__DIR__ . '/data/years.json'), true);
 $models = [];
 $bundles = [];
@@ -122,10 +121,16 @@ function createBundle(array $bundle, array $categories, ?int $mediaId, array $cr
 
     $curl = curl_init();
     $value = [];
-    $alphabets = range('a', 'z');
     foreach ($bundle["products"] as $i => $product) {
-        $value[$alphabets[$i]] = [
-            "id" => (int)$createdProducts[getProductIdentifier($product)],
+        $identifier = getProductIdentifier($product);
+        if (!isset($identifier)) {
+            continue;
+        }
+        if (!isset($createdProducts[$identifier])) {
+            continue;
+        }
+        $value[(string)($i + 1)] = [
+            "id" => (int)$createdProducts[$identifier],
             "sku" => "",
             "qty" => isset($product['quantity']) ? (int)$product['quantity'] : 0,
         ];
@@ -290,11 +295,15 @@ foreach ($years as $year) {
         $modelId = createCategory($model["text"], $yearId, 'subcategories');
         $countBundle = count($model["bundles"]);
         foreach ($model["bundles"] as $indexBundle => $bundleIndex) {
-            echo 'doing year ' . $year["text"] . ' | model ' . $indexModel . '/' . $countModel . ' | bundle ' . $indexBundle . '/' . $countBundle . "\n";
+            echo 'doing year ' . $year["text"] . ' | model ' . ($indexModel + 1) . '/' . $countModel . ' | bundle ' . ($indexBundle + 1) . '/' . $countBundle . "\n";
             $bundle = $bundles[$bundleIndex];
             $productIds = [];
             foreach ($bundle["products"] as $product) {
-                $productIds[] = createProductIfNotExists($products[getProductIdentifier($product)], [$parentId, $yearId, $modelId], $createdProducts);
+                $identifier = getProductIdentifier($product);
+                if (!isset($products[$identifier])) {
+                    continue;
+                }
+                $productIds[] = createProductIfNotExists($products[$identifier], [$parentId, $yearId, $modelId], $createdProducts);
             }
             $mediaId = postMedia($bundle);
             $bundleId = createBundle($bundle, [$parentId, $yearId, $modelId], $mediaId, $createdProducts);
